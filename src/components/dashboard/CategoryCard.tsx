@@ -18,9 +18,13 @@ interface CategoryCardProps {
   onProblemToggle: (categoryName: string, problemId: number) => void;
   revisionMap: Record<string, boolean>;
   notesMap: Record<string, string>;
+  // CHANGED: Added callback to update revision state immediately in parent
+  onRevisionToggle: (problemKey: string, marked: boolean) => void;
+  // CHANGED: Added callback to update notes state immediately
+  onNotesUpdate: (problemKey: string, notes: string) => void;
 }
 
-export const CategoryCard = ({ category, onProblemToggle, revisionMap, notesMap }: CategoryCardProps) => {
+export const CategoryCard = ({ category, onProblemToggle, revisionMap, notesMap, onRevisionToggle, onNotesUpdate }: CategoryCardProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [notesDialog, setNotesDialog] = useState<{
     isOpen: boolean;
@@ -47,11 +51,15 @@ export const CategoryCard = ({ category, onProblemToggle, revisionMap, notesMap 
     
     const problemKey = `${categoryName}-${problemId}`;
     const currentlyMarked = revisionMap[problemKey] || false;
+    const newMarkedState = !currentlyMarked;
     
-    // CHANGED: Show toast immediately without waiting for database update
+    // CHANGED: Update UI state immediately to prevent blinking
+    onRevisionToggle(problemKey, newMarkedState);
+    
+    // CHANGED: Show toast immediately with new state
     toast({
-      title: !currentlyMarked ? "Marked for Revision! 📚" : "Removed from Revision",
-      description: !currentlyMarked 
+      title: newMarkedState ? "Marked for Revision! 📚" : "Removed from Revision",
+      description: newMarkedState 
         ? "Problem added to your revision list"
         : "Problem removed from your revision list",
     });
@@ -60,10 +68,12 @@ export const CategoryCard = ({ category, onProblemToggle, revisionMap, notesMap 
       await toggleRevision({
         userId: user._id,
         problemKey,
-        markedForRevision: !currentlyMarked,
+        markedForRevision: newMarkedState,
       });
     } catch (error) {
       console.error('Error toggling revision:', error);
+      // CHANGED: Revert UI state on error
+      onRevisionToggle(problemKey, currentlyMarked);
       toast({
         title: "Error",
         description: "Failed to update revision status",
@@ -194,6 +204,7 @@ export const CategoryCard = ({ category, onProblemToggle, revisionMap, notesMap 
       problemKey={notesDialog.problemKey}
       problemTitle={notesDialog.problemTitle}
       initialNotes={notesDialog.initialNotes}
+     onNotesUpdate={onNotesUpdate}
     />
     </>
   );

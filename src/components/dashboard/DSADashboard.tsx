@@ -15,6 +15,9 @@ import { BookOpen, LogOut, BarChart3 } from "lucide-react";
 export const DSADashboard = () => {
   const [categories, setCategories] = useState(dsaData);
   const [activeTab, setActiveTab] = useState("problems");
+  // CHANGED: Added local state for revision map to prevent blinking
+  const [localRevisionMap, setLocalRevisionMap] = useState<Record<string, boolean>>({});
+  const [localNotesMap, setLocalNotesMap] = useState<Record<string, string>>({});
   const { toast } = useToast();
   const { user, signOut } = useAuth();
   
@@ -37,6 +40,9 @@ export const DSADashboard = () => {
           }))
         }))
       );
+      // CHANGED: Update local state with server data
+      setLocalRevisionMap(progressData.revision || {});
+      setLocalNotesMap(progressData.notes || {});
     }
   }, [progressData]);
 
@@ -50,6 +56,22 @@ export const DSADashboard = () => {
     const currentCompleted = categories.find(c => c.name === categoryName)?.problems.find(p => p.id === problemId)?.completed || false;
     const newCompleted = !currentCompleted;
     
+    // CHANGED: Update UI state immediately to prevent blinking
+    setCategories(prevCategories =>
+      prevCategories.map(category => 
+        category.name === categoryName 
+          ? {
+              ...category,
+              problems: category.problems.map(problem =>
+                problem.id === problemId 
+                  ? { ...problem, completed: newCompleted }
+                  : problem
+              )
+            }
+          : category
+      )
+    );
+    
     // Show toast notification immediately
     const problemTitle = categories.find(c => c.name === categoryName)?.problems.find(p => p.id === problemId)?.question || "Problem";
     toast({
@@ -60,7 +82,6 @@ export const DSADashboard = () => {
       duration: 3000,
     });
     
-    // Update in Convex database - the UI will update automatically via the progressData query
     try {
       await updateProgress({ 
         userId: user._id,
@@ -69,18 +90,49 @@ export const DSADashboard = () => {
       });
     } catch (error) {
       console.error('Error updating progress:', error);
+      // CHANGED: Revert UI state on error
+      setCategories(prevCategories =>
+        prevCategories.map(category => 
+          category.name === categoryName 
+            ? {
+                ...category,
+                problems: category.problems.map(problem =>
+                  problem.id === problemId 
+                    ? { ...problem, completed: currentCompleted }
+                    : problem
+                )
+              }
+            : category
+        )
+      );
       toast({ title: "Error", description: "Failed to save progress", variant: "destructive" });
     }
   };
 
+  // CHANGED: Added handler for immediate revision state updates
+  const handleRevisionToggle = (problemKey: string, marked: boolean) => {
+    setLocalRevisionMap(prev => ({
+      ...prev,
+      [problemKey]: marked
+    }));
+  };
+
+  // CHANGED: Added handler for immediate notes state updates
+  const handleNotesUpdate = (problemKey: string, notes: string) => {
+    setLocalNotesMap(prev => ({
+      ...prev,
+      [problemKey]: notes
+    }));
+  };
   // Calculate totals
   const totalProblems = categories.reduce((sum, cat) => sum + cat.problems.length, 0);
   const completedProblems = categories.reduce((sum, cat) => 
     sum + cat.problems.filter(p => p.completed).length, 0
   );
 
-  const revisionMap = progressData?.revision || {};
-  const notesMap = progressData?.notes || {};
+  // CHANGED: Use local state instead of server state to prevent blinking
+  const revisionMap = localRevisionMap;
+  const notesMap = localNotesMap;
   // CHANGED: Check if there are any problems marked for revision
   const hasRevisionProblems = Object.values(revisionMap).some(marked => marked);
 
@@ -155,6 +207,8 @@ export const DSADashboard = () => {
                         onProblemToggle={handleProblemToggle}
                         revisionMap={revisionMap}
                         notesMap={notesMap}
+                        onRevisionToggle={handleRevisionToggle}
+                        onNotesUpdate={handleNotesUpdate}
                       />
                     </div>
                   ))}
@@ -171,7 +225,7 @@ export const DSADashboard = () => {
           </TabsContent>
 
           <TabsContent value="revision" className="space-y-6">
-            <RevisionView />
+            <RevisionView onRevisionToggle={handleRevisionToggle} />
           </TabsContent>
         </Tabs>
 

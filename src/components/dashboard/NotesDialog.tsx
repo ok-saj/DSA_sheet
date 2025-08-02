@@ -21,6 +21,8 @@ interface NotesDialogProps {
   problemKey: string;
   problemTitle: string;
   initialNotes: string;
+  // CHANGED: Added callback to update notes state immediately
+  onNotesUpdate?: (problemKey: string, notes: string) => void;
 }
 
 export const NotesDialog: React.FC<NotesDialogProps> = ({
@@ -29,6 +31,7 @@ export const NotesDialog: React.FC<NotesDialogProps> = ({
   problemKey,
   problemTitle,
   initialNotes,
+  onNotesUpdate,
 }) => {
   const [notes, setNotes] = useState(initialNotes);
   const [isLoading, setIsLoading] = useState(false);
@@ -44,6 +47,11 @@ export const NotesDialog: React.FC<NotesDialogProps> = ({
     if (!user) return;
 
     setIsLoading(true);
+    
+    // CHANGED: Update parent state immediately to prevent blinking
+    if (onNotesUpdate) {
+      onNotesUpdate(problemKey, notes.trim());
+    }
     
     // CHANGED: Show success toast immediately
     toast({
@@ -61,6 +69,10 @@ export const NotesDialog: React.FC<NotesDialogProps> = ({
       });
     } catch (error) {
       console.error('Error saving notes:', error);
+      // CHANGED: Revert state on error if callback provided
+      if (onNotesUpdate) {
+        onNotesUpdate(problemKey, initialNotes);
+      }
       toast({
         title: "Error",
         description: "Failed to save notes. Please try again.",

@@ -1,20 +1,60 @@
 import React from 'react';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { BookOpen, ExternalLink, Play, FileText } from 'lucide-react';
+import { BookOpen, ExternalLink, Play, FileText, X } from 'lucide-react';
 import { dsaData } from '@/data/dsaData';
+import { useToast } from '@/hooks/use-toast';
 
-export const RevisionView = () => {
+interface RevisionViewProps {
+  // CHANGED: Added callback to update revision state in parent
+  onRevisionToggle: (problemKey: string, marked: boolean) => void;
+}
+
+export const RevisionView = ({ onRevisionToggle }: RevisionViewProps) => {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const toggleRevision = useMutation(api.progress.toggleRevision);
   const revisionProblems = useQuery(
     api.progress.getRevisionProblems,
     user ? { userId: user._id } : "skip"
   );
 
+  // CHANGED: Added function to handle removing problems from revision
+  const handleRemoveFromRevision = async (categoryName: string, problemId: number, problemTitle: string) => {
+    if (!user) return;
+    
+    const problemKey = `${categoryName}-${problemId}`;
+    
+    // Update UI state immediately to prevent blinking
+    onRevisionToggle(problemKey, false);
+    
+    // Show toast immediately
+    toast({
+      title: "Removed from Revision",
+      description: `"${problemTitle}" removed from your revision list`,
+    });
+    
+    try {
+      await toggleRevision({
+        userId: user._id,
+        problemKey,
+        markedForRevision: false,
+      });
+    } catch (error) {
+      console.error('Error removing from revision:', error);
+      // Revert UI state on error
+      onRevisionToggle(problemKey, true);
+      toast({
+        title: "Error",
+        description: "Failed to remove from revision",
+        variant: "destructive",
+      });
+    }
+  };
   // CHANGED: Show loading state while data is being fetched
   if (revisionProblems === undefined) {
     return (
@@ -142,6 +182,17 @@ export const RevisionView = () => {
                   </div>
                   
                   <div className="flex items-center space-x-2">
+                    {/* CHANGED: Added remove from revision button */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveFromRevision(categoryName, problem.id, problem.question)}
+                      className="hover:bg-destructive/10 hover:text-destructive"
+                      title="Remove from Revision"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                    
                     {problem.solutionLink && (
                       <Button
                         variant="ghost"
