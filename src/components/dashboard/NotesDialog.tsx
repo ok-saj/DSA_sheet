@@ -44,19 +44,21 @@ export const NotesDialog: React.FC<NotesDialogProps> = ({
     if (!user) return;
 
     setIsLoading(true);
+    
+    // CHANGED: Show success toast immediately
+    toast({
+      title: "Notes Saved! 📝",
+      description: "Your notes have been saved successfully.",
+    });
+    
+    onClose();
+    
     try {
       await updateNotes({
         userId: user._id,
         problemKey,
         notes: notes.trim(),
       });
-
-      toast({
-        title: "Notes Saved! 📝",
-        description: "Your notes have been saved successfully.",
-      });
-
-      onClose();
     } catch (error) {
       console.error('Error saving notes:', error);
       toast({

@@ -48,18 +48,19 @@ export const CategoryCard = ({ category, onProblemToggle, revisionMap, notesMap 
     const problemKey = `${categoryName}-${problemId}`;
     const currentlyMarked = revisionMap[problemKey] || false;
     
+    // CHANGED: Show toast immediately without waiting for database update
+    toast({
+      title: !currentlyMarked ? "Marked for Revision! 📚" : "Removed from Revision",
+      description: !currentlyMarked 
+        ? "Problem added to your revision list"
+        : "Problem removed from your revision list",
+    });
+    
     try {
       await toggleRevision({
         userId: user._id,
         problemKey,
         markedForRevision: !currentlyMarked,
-      });
-      
-      toast({
-        title: !currentlyMarked ? "Marked for Revision! 📚" : "Removed from Revision",
-        description: !currentlyMarked 
-          ? "Problem added to your revision list"
-          : "Problem removed from your revision list",
       });
     } catch (error) {
       console.error('Error toggling revision:', error);

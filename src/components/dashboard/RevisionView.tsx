@@ -15,6 +15,19 @@ export const RevisionView = () => {
     user ? { userId: user._id } : "skip"
   );
 
+  // CHANGED: Show loading state while data is being fetched
+  if (revisionProblems === undefined) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center space-y-4 py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Loading revision problems...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // CHANGED: Improved empty state message
   if (!revisionProblems || revisionProblems.length === 0) {
     return (
       <div className="space-y-6">
@@ -22,8 +35,14 @@ export const RevisionView = () => {
           <BookOpen className="w-16 h-16 mx-auto text-muted-foreground" />
           <h2 className="text-2xl font-bold text-foreground">No Problems Marked for Revision</h2>
           <p className="text-muted-foreground max-w-md mx-auto">
-            Mark problems for revision while solving them to create your personalized study list.
+            Mark problems for revision while solving them to create your personalized study list. 
+            Use the bookmark button next to any problem to add it here.
           </p>
+          <div className="mt-6">
+            <p className="text-sm text-muted-foreground">
+              💡 Tip: Problems marked for revision will appear here for easy access during your study sessions.
+            </p>
+          </div>
         </div>
       </div>
     );
